@@ -2,6 +2,8 @@ import os
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -57,9 +59,18 @@ def get_current_session_id(db: Session, room_id: str) -> str:
 
 # ---------- Routes ----------
 
-@app.get("/")
+@app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Serve the frontend at the root URL, static assets under /static
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+def index():
+    return FileResponse("static/index.html")
 
 
 @app.post("/login")

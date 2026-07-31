@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Craiyon Workshop</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #171a23;
+    --border: #2a2e3a;
+    --accent: #7c5cff;
+    --text: #e8e8ec;
+    --muted: #9a9ba8;
+    --success: #4ade80;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .container { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input, textarea {
+    width: 100%;
+    background: #0b0d13;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--text);
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error { color: #f87171; font-size: 14px; margin-bottom: 12px; }
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; font-size: 14px; color: var(--muted);
+  }
+  .target-thumb {
+    width: 100%; border-radius: 8px; margin-bottom: 14px;
+    border: 1px solid var(--border);
+  }
+  .target-list { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 20px; padding-bottom: 4px; }
+  .target-pill {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--border); cursor: pointer; font-size: 13px;
+    background: var(--card); color: var(--muted);
+  }
+  .target-pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .result-grid img { width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+  .result-grid .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .score-badge {
+    display: inline-block; background: #1e2230; border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 14px; font-weight: 700; margin-top: 12px;
+  }
+  .attempts { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .leaderboard-row {
+    display: flex; justify-content: space-between; padding: 10px 0;
+    border-bottom: 1px solid var(--border); font-size: 14px;
+  }
+  .leaderboard-row:last-child { border-bottom: none; }
+  .rank { color: var(--muted); width: 28px; display: inline-block; }
+  .refresh-link { color: var(--accent); font-size: 13px; cursor: pointer; text-decoration: underline; }
+  .loading { text-align: center; color: var(--muted); padding: 20px; }
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+
+<script>
+const API_BASE = ""; // same origin -- served from the FastAPI app itself
+
+let state = {
+  seat_id: localStorage.getItem("seat_id") || null,
+  room_id: localStorage.getItem("room_id") || null,
+  targets: [],
+  activeTargetId: null,
+  loading: false,
+  error: null,
+  lastResult: null,
+  leaderboard: [],
+};
+
+function setState(patch) {
+  state = { ...state, ...patch };
+  render();
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "Something went wrong");
+  return data;
+}
+
+async function login(username, password) {
+  setState({ loading: true, error: null });
+  try {
+    const result = await api("/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+    localStorage.setItem("seat_id", result.seat_id);
+    localStorage.setItem("room_id", result.room_id);
+    setState({ seat_id: result.seat_id, room_id: result.room_id, loading: false });
+    await loadTargets();
+  } catch (e) {
+    setState({ loading: false, error: e.message });
+  }
+}
+
+function logout() {
+  localStorage.clear();
+  state = { ...state, seat_id: null, room_id: null, targets: [], lastResult: null };
+  render();
+}
+
+async function loadTargets() {
+  setState({ loading: true });
+  try {
+    const targets = await api("/targets");
+    setState({
+      targets,
+      activeTargetId: targets.length ? targets[0].id : null,
+      loading: false,
+    });
+    if (targets.length) loadLeaderboard();
+  } catch (e) {
+    setState({ loading: false, error: e.message });
+  }
+}
+
+async function loadLeaderboard() {
+  try {
+    const board = await api(`/leaderboard/${state.room_id}`);
+    setState({ leaderboard: board });
+  } catch (e) {
+    // non-fatal, leaderboard just won't update
+  }
+}
+
+async function generate(prompt) {
+  if (!prompt.trim()) return;
+  setState({ loading: true, error: null });
+  try {
+    const result = await api("/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        seat_id: state.seat_id,
+        room_id: state.room_id,
+        target_id: state.activeTargetId,
+        prompt,
+      }),
+    });
+    setState({ loading: false, lastResult: result });
+    loadLeaderboard();
+  } catch (e) {
+    setState({ loading: false, error: e.message });
+  }
+}
+
+function renderLogin() {
+  return `
+    <h1>Craiyon Workshop</h1>
+    <div class="subtitle">Log in with your seat credentials</div>
+    <div class="card">
+      ${state.error ? `<div class="error">${state.error}</div>` : ""}
+      <label>Username</label>
+      <input id="username" placeholder="SEAT001_1" autocapitalize="characters" />
+      <label>Password</label>
+      <input id="password" type="password" placeholder="S001_1" />
+      <button id="loginBtn" ${state.loading ? "disabled" : ""}>
+        ${state.loading ? "Logging in..." : "Log in"}
+      </button>
+    </div>
+  `;
+}
+
+function renderWorkshop() {
+  const target = state.targets.find(t => t.id === state.activeTargetId);
+  return `
+    <div class="top-bar">
+      <span>Seat ${state.seat_id.replace("SEAT", "")} &middot; Room ${state.room_id}</span>
+      <span class="refresh-link" id="logoutBtn">Log out</span>
+    </div>
+    <h1>Recreate the image</h1>
+    <div class="subtitle">Pick an image, write a prompt, see how close you get</div>
+
+    <div class="target-list">
+      ${state.targets.map(t => `
+        <div class="target-pill ${t.id === state.activeTargetId ? "active" : ""}" data-target="${t.id}">
+          ${t.label}
+        </div>
+      `).join("")}
+    </div>
+
+    ${target ? `
+      <div class="card">
+        <label>Target image</label>
+        <img class="target-thumb" src="${target.image_url}" alt="${target.label}" />
+        ${state.error ? `<div class="error">${state.error}</div>` : ""}
+        <label>Your prompt</label>
+        <textarea id="promptInput" placeholder="Describe the image as precisely as you can..."></textarea>
+        <button id="generateBtn" ${state.loading ? "disabled" : ""}>
+          ${state.loading ? "Generating..." : "Generate & Score"}
+        </button>
+
+        ${state.lastResult ? `
+          <div class="result-grid">
+            <div>
+              <div class="label">Target</div>
+              <img src="${target.image_url}" />
+            </div>
+            <div>
+              <div class="label">Your result</div>
+              <img src="${state.lastResult.image_url}" />
+            </div>
+          </div>
+          <div class="score-badge">Score: ${state.lastResult.score} / 100</div>
+          <div class="attempts">${state.lastResult.attempts_left} attempt(s) left for this image</div>
+        ` : ""}
+      </div>
+    ` : `<div class="loading">No target images yet -- check back once the admin adds them.</div>`}
+
+    <div class="card">
+      <div class="top-bar" style="margin-bottom:10px;">
+        <strong style="color:var(--text)">Leaderboard - Room ${state.room_id}</strong>
+        <span class="refresh-link" id="refreshBoard">Refresh</span>
+      </div>
+      ${state.leaderboard.length ? state.leaderboard.map((row, i) => `
+        <div class="leaderboard-row">
+          <span><span class="rank">#${i + 1}</span> ${row.seat_id}</span>
+          <strong>${row.total_score}</strong>
+        </div>
+      `).join("") : `<div class="loading">No scores yet</div>`}
+    </div>
+  `;
+}
+
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = state.seat_id ? renderWorkshop() : renderLogin();
+
+  if (!state.seat_id) {
+    document.getElementById("loginBtn").onclick = () => {
+      login(document.getElementById("username").value, document.getElementById("password").value);
+    };
+  } else {
+    document.getElementById("logoutBtn").onclick = logout;
+    document.getElementById("refreshBoard").onclick = loadLeaderboard;
+    document.querySelectorAll(".target-pill").forEach(el => {
+      el.onclick = () => setState({ activeTargetId: parseInt(el.dataset.target), lastResult: null, error: null });
+    });
+    const genBtn = document.getElementById("generateBtn");
+    if (genBtn) {
+      genBtn.onclick = () => generate(document.getElementById("promptInput").value);
+    }
+  }
+}
+
+render();
+if (state.seat_id) loadTargets();
+</script>
+</body>
+</html>

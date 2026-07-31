@@ -17,10 +17,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 # Falls back to a local sqlite file so you can test on your laptop first.
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./local.db")
 
-# Railway/Heroku-style URLs sometimes start with postgres:// -- SQLAlchemy 2.x
-# needs postgresql://, so we fix it up here.
+# Railway/Heroku-style URLs start with postgres:// -- SQLAlchemy needs the
+# full dialect+driver form to use psycopg3 (more reliable wheel packaging
+# on Railway than psycopg2-binary, which can fail with a missing libpq.so.5).
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
