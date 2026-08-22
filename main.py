@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MAX_ATTEMPTS_PER_TARGET = 3
+MAX_ATTEMPTS_PER_TARGET = 2
 ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "change-me")
 
 

@@ -6,121 +6,271 @@
 <title>craiyon_aura</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Turret+Road:wght@200;300;400;500;700;800&family=Iceland&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #17181b; --paper: #1f2124; --paper-raised: #26292e; --line: #34373d;
-    --aura-green: #3ecf5e; --coral: #ff6b4a; --gold: #ffc857;
-    --chalk: #f2f0ea; --smoke: #93959e;
+    --bg: #fbfbfd;
+    --paper: #ffffff;
+    --line: #e4e6ee;
+    --ink: #14151a;
+    --smoke: #6b6d7a;
+    --green: #21d06a;
+    --blue: #2e8bff;
+    --pink: #ff3ea5;
+    --gold: #ffb703;
+    --purple: #8b5cf6;
+
+    --font-mega: 'Press Start 2P', monospace;
+    --font-mid: 'Turret Road', sans-serif;
+    --font-small: 'Iceland', sans-serif;
   }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    margin: 0; background: var(--ink); color: var(--chalk);
-    font-family: 'Work Sans', sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-small);
+    font-size: 19px;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 90px; }
 
-  .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .mark { width: 30px; height: 30px; flex-shrink: 0; }
-  .wordmark { font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: -0.02em; }
-  .wordmark span { color: var(--aura-green); }
-  .tagline { color: var(--smoke); font-size: 14px; margin: 6px 0 22px; }
-  .scribble { display: block; width: 74px; height: 10px; margin-top: 4px; }
+  /* ---------- Techy decorative background ---------- */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(20,21,26,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,21,26,0.045) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+  .blob {
+    position: fixed; border-radius: 50%; filter: blur(60px); z-index: 0;
+    pointer-events: none; opacity: 0.35; animation: float 14s ease-in-out infinite;
+  }
+  .blob1 { width: 340px; height: 340px; background: var(--green); top: -120px; left: -100px; }
+  .blob2 { width: 300px; height: 300px; background: var(--pink); top: 40%; right: -140px; animation-delay: -4s; }
+  .blob3 { width: 260px; height: 260px; background: var(--blue); bottom: -100px; left: 20%; animation-delay: -8s; }
+  .blob4 { width: 200px; height: 200px; background: var(--gold); top: 10%; right: 15%; animation-delay: -2s; opacity: 0.25; }
+  .blob5 { width: 180px; height: 180px; background: var(--purple); bottom: 15%; right: 8%; animation-delay: -6s; opacity: 0.22; }
+  .blob6 { width: 150px; height: 150px; background: var(--green); bottom: 35%; left: -60px; animation-delay: -10s; opacity: 0.2; }
+  @keyframes float {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(20px,-30px) scale(1.08); }
+  }
 
-  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
-  h2 { font-family: 'Unbounded', sans-serif; font-size: 16px; font-weight: 500; margin: 0 0 14px; }
-  label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--smoke); margin-bottom: 6px; font-weight: 600; }
+  /* ---------- Floating geometric shapes ---------- */
+  .shape {
+    position: fixed; z-index: 0; pointer-events: none;
+    border: 2.5px solid var(--ink); opacity: 0.16;
+    animation: drift 9s ease-in-out infinite;
+  }
+  .shape-square { border-radius: 6px; }
+  .shape-circle { border-radius: 50%; }
+  .shape-triangle {
+    width: 0; height: 0; border: none !important;
+    border-left: 22px solid transparent !important;
+    border-right: 22px solid transparent !important;
+    border-bottom: 36px solid var(--ink) !important;
+    opacity: 0.14;
+  }
+  .s1 { width: 34px; height: 34px; top: 14%; left: 8%; animation-delay: -1s; }
+  .s2 { width: 22px; height: 22px; top: 60%; left: 6%; animation-delay: -3s; }
+  .s3 { width: 28px; height: 28px; top: 22%; right: 10%; animation-delay: -5s; }
+  .s4 { top: 75%; right: 14%; animation-delay: -2s; }
+  .s5 { width: 40px; height: 40px; bottom: 8%; left: 40%; animation-delay: -7s; }
+  .s6 { width: 18px; height: 18px; top: 45%; right: 30%; animation-delay: -4s; }
+  .s7 { top: 8%; left: 42%; animation-delay: -6s; }
+  .s8 { width: 26px; height: 26px; bottom: 20%; right: 42%; animation-delay: -8.5s; }
+  @keyframes drift {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-18px) rotate(12deg); }
+  }
+
+  /* ---------- Sparkle plus-signs ---------- */
+  .sparkle {
+    position: fixed; z-index: 0; pointer-events: none; color: var(--ink);
+    font-family: var(--font-mega); font-size: 16px; opacity: 0.18;
+    animation: twinkle 3.4s ease-in-out infinite;
+  }
+  .sp1 { top: 18%; left: 22%; animation-delay: -0.5s; color: var(--pink); }
+  .sp2 { top: 65%; left: 12%; animation-delay: -1.8s; color: var(--blue); }
+  .sp3 { top: 30%; right: 20%; animation-delay: -1s; color: var(--gold); }
+  .sp4 { bottom: 12%; right: 25%; animation-delay: -2.4s; color: var(--green); }
+  .sp5 { top: 50%; left: 45%; animation-delay: -0.2s; color: var(--purple); }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.1; transform: scale(0.9) rotate(0deg); }
+    50% { opacity: 0.32; transform: scale(1.15) rotate(20deg); }
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 620px; margin: 0 auto; padding: 24px 18px 100px; }
+
+  /* ---------- Typography helpers ---------- */
+  .mega { font-family: var(--font-mega); line-height: 1.5; }
+  .mid { font-family: var(--font-mid); font-weight: 700; }
+  .small { font-family: var(--font-small); }
+
+  /* ---------- Splash screen ---------- */
+  .splash {
+    min-height: 88vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; gap: 22px;
+  }
+  .splash .mark { width: 110px; height: 110px; }
+  .splash h1 {
+    font-family: var(--font-mega); font-size: 26px; margin: 0; line-height: 1.6;
+    color: var(--ink);
+  }
+  .splash h1 .accent { color: var(--green); }
+  .splash p { font-family: var(--font-mid); font-size: 22px; color: var(--smoke); margin: 0; }
+  .go-btn {
+    font-family: var(--font-mega); font-size: 20px; letter-spacing: 2px;
+    background: var(--ink); color: #fff; border: none; border-radius: 16px;
+    padding: 20px 56px; cursor: pointer; box-shadow: 6px 6px 0 var(--green);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .go-btn:hover { transform: translate(-2px,-2px); box-shadow: 8px 8px 0 var(--green); }
+  .go-btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--green); }
+
+  /* ---------- Cards ---------- */
+  .card {
+    background: var(--paper); border: 2.5px solid var(--ink); border-radius: 20px;
+    padding: 26px; margin-bottom: 20px; box-shadow: 7px 7px 0 var(--ink);
+  }
+  .card.accent-green { box-shadow: 7px 7px 0 var(--green); }
+  .card.accent-pink { box-shadow: 7px 7px 0 var(--pink); }
+  .card.accent-blue { box-shadow: 7px 7px 0 var(--blue); }
+
+  h2.section-title {
+    font-family: var(--font-mid); font-size: 24px; font-weight: 800; margin: 0 0 16px;
+  }
+  label { display: block; font-family: var(--font-small); font-size: 16px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--smoke); margin-bottom: 8px; }
   input, textarea {
-    width: 100%; background: var(--ink); border: 1px solid var(--line); border-radius: 9px;
-    padding: 12px 13px; color: var(--chalk); font-size: 15px; font-family: 'Work Sans', sans-serif; margin-bottom: 16px;
+    width: 100%; background: #f4f5f9; border: 2px solid var(--line); border-radius: 12px;
+    padding: 15px 16px; color: var(--ink); font-size: 19px; font-family: var(--font-mid);
+    margin-bottom: 18px;
   }
-  input::placeholder, textarea::placeholder { color: #55585f; }
-  input:focus, textarea:focus { outline: 2px solid var(--aura-green); outline-offset: -1px; border-color: var(--aura-green); }
-  textarea { resize: vertical; min-height: 76px; }
+  input::placeholder, textarea::placeholder { color: #9a9cab; }
+  input:focus, textarea:focus { outline: none; border-color: var(--green); }
+  textarea { resize: vertical; min-height: 90px; }
 
-  button {
-    background: var(--aura-green); color: #0d1a10; border: none; border-radius: 9px;
-    padding: 13px 18px; font-size: 15px; font-weight: 700; font-family: 'Work Sans', sans-serif;
-    cursor: pointer; width: 100%; transition: transform 0.08s ease, background 0.15s ease;
+  button.primary {
+    font-family: var(--font-mid); font-weight: 800; font-size: 19px;
+    background: var(--green); color: #06210f; border: 2.5px solid var(--ink); border-radius: 14px;
+    padding: 16px 20px; cursor: pointer; width: 100%; box-shadow: 5px 5px 0 var(--ink);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
   }
-  button:hover:not(:disabled) { background: #4ee06c; }
-  button:active:not(:disabled) { transform: scale(0.98); }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.primary:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 7px 7px 0 var(--ink); }
+  button.primary:active:not(:disabled) { transform: translate(1px,1px); box-shadow: 3px 3px 0 var(--ink); }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 3px 3px 0 var(--ink); }
+
+  button.next-btn { background: var(--pink); color: #fff; }
+  button.continue-btn { background: var(--gold); color: #2a1c00; }
 
   .error {
-    background: rgba(255,107,74,0.1); border: 1px solid rgba(255,107,74,0.35); color: var(--coral);
-    font-size: 13.5px; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px;
+    background: #ffe9ee; border: 2px solid var(--pink); color: #c30060;
+    font-family: var(--font-mid); font-size: 16px; padding: 12px 14px; border-radius: 10px; margin-bottom: 16px;
   }
   .hint {
-    background: rgba(62,207,94,0.08); border: 1px solid rgba(62,207,94,0.3); color: var(--aura-green);
-    font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; font-family: 'Space Mono', monospace;
+    background: #eafff2; border: 2px solid var(--green); color: #0a7a3e;
+    font-family: var(--font-small); font-size: 18px; padding: 12px 14px; border-radius: 10px; margin-bottom: 16px;
   }
+  .word-count { font-family: var(--font-small); font-size: 15px; color: var(--smoke); margin: -10px 0 16px; }
+  .word-count.over { color: var(--pink); font-weight: bold; }
 
-  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; font-size: 13px; color: var(--smoke); }
+  /* ---------- Progress ---------- */
+  .progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .progress-dots { display: flex; gap: 8px; }
+  .dot { width: 13px; height: 13px; border-radius: 50%; background: var(--line); border: 2px solid var(--ink); }
+  .dot.done { background: var(--green); }
+  .dot.current { background: var(--pink); }
+  .progress-label { font-family: var(--font-small); font-size: 16px; color: var(--smoke); }
   .seat-chip {
-    font-family: 'Space Mono', monospace; background: var(--paper-raised); border: 1px solid var(--line);
-    padding: 5px 10px; border-radius: 999px; color: var(--chalk);
+    font-family: var(--font-small); font-size: 16px; background: var(--ink); color: #fff;
+    padding: 6px 14px; border-radius: 999px;
   }
-  .link-btn { color: var(--aura-green); font-size: 13px; cursor: pointer; font-weight: 600; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .link-btn { color: var(--blue); font-family: var(--font-small); font-size: 16px; cursor: pointer; }
 
-  .level-label {
-    font-family: 'Space Mono', monospace; font-size: 12px; color: var(--smoke);
-    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
+  /* ---------- Target image ---------- */
+  .target-thumb {
+    width: 100%; border-radius: 14px; margin-bottom: 6px; border: 2.5px solid var(--ink); display: block;
   }
-  .target-list { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 18px; padding-bottom: 2px; }
-  .target-pill {
-    flex-shrink: 0; padding: 9px 15px; border-radius: 999px; border: 1px solid var(--line); cursor: pointer;
-    font-size: 13px; background: var(--paper); color: var(--smoke); font-weight: 600;
-    font-family: 'Space Mono', monospace; transition: all 0.15s ease;
-  }
-  .target-pill.active { background: var(--aura-green); color: #0d1a10; border-color: var(--aura-green); }
+  .thumb-caption { font-family: var(--font-small); font-size: 16px; color: var(--smoke); margin-bottom: 18px; }
 
-  .target-thumb { width: 100%; border-radius: 10px; margin-bottom: 4px; border: 1px solid var(--line); display: block; }
-  .thumb-caption { font-size: 12px; color: var(--smoke); margin-bottom: 16px; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+  .result-grid img { width: 100%; border-radius: 12px; border: 2.5px solid var(--ink); display: block; }
+  .result-label { font-family: var(--font-small); font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--smoke); margin-bottom: 8px; }
 
-  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
-  .result-grid img { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
-  .result-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--smoke); margin-bottom: 6px; font-weight: 600; }
-
-  .score-panel { margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line); display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-  .score-number { font-family: 'Space Mono', monospace; font-size: 42px; font-weight: 700; line-height: 1; }
-  .score-number.high { color: var(--aura-green); }
+  .score-panel { margin-top: 22px; padding-top: 22px; border-top: 3px dashed var(--line); }
+  .score-number { font-family: var(--font-mega); font-size: 40px; }
+  .score-number.high { color: var(--green); }
   .score-number.mid { color: var(--gold); }
-  .score-number.low { color: var(--coral); }
-  .score-unit { font-family: 'Space Mono', monospace; font-size: 16px; color: var(--smoke); }
-  .score-tier { font-family: 'Unbounded', sans-serif; font-size: 14px; margin-top: 2px; }
-  .attempts-left { font-size: 12.5px; color: var(--smoke); margin-top: 8px; width: 100%; font-family: 'Space Mono', monospace; }
+  .score-number.low { color: var(--pink); }
+  .score-unit { font-family: var(--font-mid); font-size: 18px; color: var(--smoke); }
+  .score-tier { font-family: var(--font-mid); font-size: 20px; margin-top: 8px; font-weight: 800; }
+  .attempts-left { font-family: var(--font-small); font-size: 16px; color: var(--smoke); margin-top: 10px; }
 
-  .empty-state { text-align: center; color: var(--smoke); padding: 26px 10px; font-size: 14px; }
+  /* ---------- Transition / finish screens ---------- */
+  .transition {
+    min-height: 70vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; gap: 20px;
+  }
+  .transition h2 { font-family: var(--font-mega); font-size: 22px; line-height: 1.7; margin: 0; }
+  .transition p { font-family: var(--font-mid); font-size: 20px; color: var(--smoke); margin: 0; max-width: 380px; }
+
+  .empty-state { text-align: center; color: var(--smoke); font-family: var(--font-mid); padding: 26px 10px; }
 </style>
 </head>
 <body>
+<div class="bg-grid"></div>
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+<div class="blob blob3"></div>
+<div class="blob blob4"></div>
+<div class="blob blob5"></div>
+<div class="blob blob6"></div>
+<div class="shape shape-square s1"></div>
+<div class="shape shape-circle s2"></div>
+<div class="shape shape-square s3"></div>
+<div class="shape shape-triangle s4"></div>
+<div class="shape shape-circle s5"></div>
+<div class="shape shape-square s6"></div>
+<div class="shape shape-triangle s7"></div>
+<div class="shape shape-circle s8"></div>
+<div class="sparkle sp1">+</div>
+<div class="sparkle sp2">+</div>
+<div class="sparkle sp3">+</div>
+<div class="sparkle sp4">+</div>
+<div class="sparkle sp5">+</div>
 <div class="wrap" id="app"></div>
 
 <script>
 const API_BASE = "";
+const MAX_ATTEMPTS = 2;
+const LEVEL_1_WORD_LIMIT = 12;
 
+// Placeholder mark -- swap the <svg> below for an <img src="your-aura-logo.jpg">
+// once the real logo file is added to /static.
 const AURA_MARK_SVG = `
 <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M50 14 L82 62 L64 62 L50 40 L36 62 L18 62 Z" stroke="#f2f0ea" stroke-width="6" stroke-linejoin="round" fill="none"/>
-  <rect x="34" y="66" width="32" height="9" rx="1.5" fill="#3ecf5e" transform="skewX(-18)"/>
+  <path d="M50 14 L82 62 L64 62 L50 40 L36 62 L18 62 Z" stroke="#14151a" stroke-width="7" stroke-linejoin="round" fill="none"/>
+  <rect x="34" y="66" width="32" height="9" rx="1.5" fill="#21d06a" transform="skewX(-18)"/>
 </svg>`;
-
-const SCRIBBLE_SVG = `
-<svg class="scribble" viewBox="0 0 74 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M2 7 C 14 2, 20 9, 30 5 S 48 1, 58 6 S 68 8, 72 4" stroke="#3ecf5e" stroke-width="3" stroke-linecap="round"/>
-</svg>`;
-
-const LEVEL_NAMES = { 1: "Level 1 — Free prompt", 2: "Level 2 — Banned words", 3: "Level 3 — Emoji only" };
 
 let state = {
+  screen: "splash", // splash -> login -> transition -> playing -> transition -> playing -> finished
   seat_id: localStorage.getItem("seat_id") || null,
   room_id: localStorage.getItem("room_id") || null,
   targets: [],
-  activeTargetId: null,
+  currentIndex: 0,
   loading: false,
   error: null,
   lastResult: null,
+  promptDraft: "",
 };
 
 function setState(patch) { state = { ...state, ...patch }; render(); }
@@ -138,8 +288,12 @@ async function login(username, password) {
     const result = await api("/login", { method: "POST", body: JSON.stringify({ username, password }) });
     localStorage.setItem("seat_id", result.seat_id);
     localStorage.setItem("room_id", result.room_id);
-    setState({ seat_id: result.seat_id, room_id: result.room_id, loading: false });
-    await loadTargets();
+    const targets = await api("/targets");
+    setState({
+      seat_id: result.seat_id, room_id: result.room_id, targets,
+      currentIndex: 0, loading: false, screen: targets.length ? "playing" : "playing",
+      lastResult: null,
+    });
   } catch (e) {
     setState({ loading: false, error: e.message });
   }
@@ -147,27 +301,18 @@ async function login(username, password) {
 
 function logout() {
   localStorage.clear();
-  state = { ...state, seat_id: null, room_id: null, targets: [], lastResult: null };
+  state = { screen: "splash", seat_id: null, room_id: null, targets: [], currentIndex: 0, lastResult: null, error: null, promptDraft: "" };
   render();
 }
 
-async function loadTargets() {
-  setState({ loading: true });
-  try {
-    const targets = await api("/targets");
-    setState({ targets, activeTargetId: targets.length ? targets[0].id : null, loading: false });
-  } catch (e) {
-    setState({ loading: false, error: e.message });
-  }
-}
-
 async function generate(prompt) {
+  const target = state.targets[state.currentIndex];
   if (!prompt.trim()) return;
   setState({ loading: true, error: null });
   try {
     const result = await api("/generate", {
       method: "POST",
-      body: JSON.stringify({ seat_id: state.seat_id, room_id: state.room_id, target_id: state.activeTargetId, prompt }),
+      body: JSON.stringify({ seat_id: state.seat_id, room_id: state.room_id, target_id: target.id, prompt }),
     });
     setState({ loading: false, lastResult: result });
   } catch (e) {
@@ -175,68 +320,146 @@ async function generate(prompt) {
   }
 }
 
+function advance() {
+  const nextIndex = state.currentIndex + 1;
+  const justFinishedLevelBoundary = (state.currentIndex === 1 || state.currentIndex === 3);
+
+  if (nextIndex >= state.targets.length) {
+    setState({ screen: "finished", lastResult: null, error: null, promptDraft: "" });
+    return;
+  }
+  if (justFinishedLevelBoundary) {
+    setState({ screen: "transition", currentIndex: nextIndex, lastResult: null, error: null, promptDraft: "" });
+  } else {
+    setState({ currentIndex: nextIndex, lastResult: null, error: null, promptDraft: "" });
+  }
+}
+
+function continueFromTransition() {
+  setState({ screen: "playing" });
+}
+
 function scoreTier(score) {
-  if (score >= 80) return { label: "Nailed it", cls: "high" };
-  if (score >= 55) return { label: "So close", cls: "mid" };
+  if (score >= 80) return { label: "Nailed it! 🔥", cls: "high" };
+  if (score >= 55) return { label: "So close!", cls: "mid" };
   if (score >= 30) return { label: "Getting there", cls: "mid" };
-  return { label: "Way off — try again", cls: "low" };
+  return { label: "Way off — nice try", cls: "low" };
+}
+
+function levelOf(index) {
+  if (index < 2) return 1;
+  if (index < 4) return 2;
+  return 3;
+}
+
+// ---------- Screens ----------
+
+function renderSplash() {
+  return `
+    <div class="splash">
+      <div class="mark">${AURA_MARK_SVG}</div>
+      <h1>craiyon<span class="accent">_aura</span></h1>
+      <p>Ready for craiyon?</p>
+      <button class="go-btn" id="goBtn">GO</button>
+    </div>
+  `;
 }
 
 function renderLogin() {
   return `
-    <div class="brand-row"><div class="mark">${AURA_MARK_SVG}</div><div class="wordmark">craiyon<span>_aura</span></div></div>
-    <div class="tagline">Redraw it. Match it. Beat the room.</div>
-    ${SCRIBBLE_SVG}
-    <div class="card" style="margin-top:18px;">
-      <h2>Seat login</h2>
+    <div class="splash" style="min-height:auto; padding-top:40px;">
+      <div class="mark" style="width:70px;height:70px;">${AURA_MARK_SVG}</div>
+      <h1 style="font-size:20px;">craiyon<span class="accent">_aura</span></h1>
+    </div>
+    <div class="card accent-green">
+      <h2 class="section-title">Seat login</h2>
       ${state.error ? `<div class="error">${state.error}</div>` : ""}
       <label>Username</label>
       <input id="username" placeholder="SEAT001_1" autocapitalize="characters" autocomplete="off" />
       <label>Password</label>
       <input id="password" type="password" placeholder="S001_1" autocomplete="off" />
-      <button id="loginBtn" ${state.loading ? "disabled" : ""}>${state.loading ? "Checking..." : "Enter the room"}</button>
+      <button class="primary" id="loginBtn" ${state.loading ? "disabled" : ""}>${state.loading ? "Checking..." : "Enter the room"}</button>
     </div>
   `;
 }
 
-function renderWorkshop() {
-  const target = state.targets.find(t => t.id === state.activeTargetId);
+function renderTransition() {
+  const justFinishedLevel = levelOf(state.currentIndex - 1);
+  return `
+    <div class="transition">
+      <div class="mark" style="width:80px;height:80px;">${AURA_MARK_SVG}</div>
+      <h2>Great! Level ${justFinishedLevel} done 🚀</h2>
+      <p>Let's move on to some new challenges.</p>
+      <button class="primary continue-btn" id="continueBtn" style="max-width:260px;">Let's go →</button>
+    </div>
+  `;
+}
+
+function renderFinished() {
+  return `
+    <div class="transition">
+      <div class="mark" style="width:90px;height:90px;">${AURA_MARK_SVG}</div>
+      <h2>You crushed it! 🎉</h2>
+      <p>You've completed all 6 images. Check the room screen for the live leaderboard.</p>
+      <button class="primary" id="logoutBtn2" style="max-width:260px;">Done</button>
+    </div>
+  `;
+}
+
+function renderPlaying() {
+  const target = state.targets[state.currentIndex];
+  const level = target ? target.level : 1;
   const tier = state.lastResult ? scoreTier(state.lastResult.score) : null;
+  const attemptsLeft = state.lastResult ? state.lastResult.attempts_left : MAX_ATTEMPTS;
+  const outOfAttempts = attemptsLeft <= 0;
+
+  const wordCount = state.promptDraft.trim() ? state.promptDraft.trim().split(/\s+/).length : 0;
+  const overWordLimit = level === 1 && wordCount > LEVEL_1_WORD_LIMIT;
 
   let rulehint = "";
-  if (target && target.level === 2 && target.banned_words) {
-    rulehint = `<div class="hint">Banned words for this image: ${target.banned_words}</div>`;
-  } else if (target && target.level === 3) {
-    rulehint = `<div class="hint">Emoji only for this image — no letters or words 🚫🔤</div>`;
+  if (level === 1) {
+    rulehint = `<div class="hint">Max ${LEVEL_1_WORD_LIMIT} words for this one ✏️</div>`;
+  } else if (level === 2 && target.banned_words) {
+    rulehint = `<div class="hint">Banned words: ${target.banned_words} 🚫</div>`;
+  } else if (level === 3) {
+    rulehint = `<div class="hint">Emoji only — no letters allowed 🔡🚫</div>`;
   }
+
+  const dots = state.targets.map((_, i) => {
+    let cls = "dot";
+    if (i < state.currentIndex) cls += " done";
+    else if (i === state.currentIndex) cls += " current";
+    return `<span class="${cls}"></span>`;
+  }).join("");
 
   return `
     <div class="top-bar">
       <span class="seat-chip">${state.seat_id} · Room ${state.room_id}</span>
       <span class="link-btn" id="logoutBtn">Log out</span>
     </div>
-    <div class="brand-row"><div class="mark">${AURA_MARK_SVG}</div><div class="wordmark">craiyon<span>_aura</span></div></div>
-    <div class="tagline">Pick an image, write a prompt, see how close you get.</div>
 
     ${state.targets.length ? `
-      ${target ? `<div class="level-label">${LEVEL_NAMES[target.level] || "Level " + target.level}</div>` : ""}
-      <div class="target-list">
-        ${state.targets.map(t => `
-          <div class="target-pill ${t.id === state.activeTargetId ? "active" : ""}" data-target="${t.id}">${t.label}</div>
-        `).join("")}
+      <div class="progress-row">
+        <div class="progress-dots">${dots}</div>
+        <div class="progress-label">Image ${state.currentIndex + 1} / ${state.targets.length}</div>
       </div>
 
-      <div class="card">
-        <h2>Target image</h2>
-        <img class="target-thumb" src="${target.image_url}" alt="${target.label}" />
-        <div class="thumb-caption">Describe this as precisely as you can — colors, composition, style, all count.</div>
+      <div class="card accent-blue">
+        <h2 class="section-title">Recreate this</h2>
+        <img class="target-thumb" src="${target.image_url}" alt="target image" />
+        <div class="thumb-caption">Describe it as precisely as you can.</div>
 
-        ${rulehint}
+        ${!state.lastResult ? rulehint : ""}
         ${state.error ? `<div class="error">${state.error}</div>` : ""}
 
-        <label>Your prompt</label>
-        <textarea id="promptInput" placeholder="${target.level === 3 ? 'Only emoji here...' : 'Describe exactly what you see...'}"></textarea>
-        <button id="generateBtn" ${state.loading ? "disabled" : ""}>${state.loading ? "Generating..." : "Generate & score"}</button>
+        ${!outOfAttempts ? `
+          <label>Your prompt</label>
+          <textarea id="promptInput" placeholder="${level === 3 ? 'Only emoji here...' : 'Describe exactly what you see...'}">${state.promptDraft}</textarea>
+          ${level === 1 ? `<div class="word-count ${overWordLimit ? 'over' : ''}">${wordCount} / ${LEVEL_1_WORD_LIMIT} words</div>` : ""}
+          <button class="primary" id="generateBtn" ${state.loading || overWordLimit ? "disabled" : ""}>${state.loading ? "Generating..." : "Generate & score"}</button>
+        ` : `
+          <button class="primary next-btn" id="nextBtn">${state.currentIndex + 1 >= state.targets.length ? "Finish up →" : "Next challenge →"}</button>
+        `}
 
         ${state.lastResult ? `
           <div class="result-grid">
@@ -244,11 +467,9 @@ function renderWorkshop() {
             <div><div class="result-label">Your result</div><img src="${state.lastResult.image_url}" /></div>
           </div>
           <div class="score-panel">
-            <div>
-              <span class="score-number ${tier.cls}">${state.lastResult.score}</span><span class="score-unit"> /100</span>
-              <div class="score-tier">${tier.label}</div>
-            </div>
-            <div class="attempts-left">${state.lastResult.attempts_left} attempt(s) left on this image</div>
+            <span class="score-number ${tier.cls}">${state.lastResult.score}</span><span class="score-unit"> /100</span>
+            <div class="score-tier">${tier.label}</div>
+            <div class="attempts-left">${attemptsLeft > 0 ? `${attemptsLeft} attempt(s) left` : "No attempts left on this one"}</div>
           </div>
         ` : ""}
       </div>
@@ -258,24 +479,73 @@ function renderWorkshop() {
 
 function render() {
   const app = document.getElementById("app");
-  app.innerHTML = state.seat_id ? renderWorkshop() : renderLogin();
 
-  if (!state.seat_id) {
+  if (state.screen === "splash") {
+    app.innerHTML = renderSplash();
+    document.getElementById("goBtn").onclick = () => setState({ screen: "login" });
+    return;
+  }
+
+  if (state.screen === "login") {
+    app.innerHTML = renderLogin();
     document.getElementById("loginBtn").onclick = () => {
       login(document.getElementById("username").value, document.getElementById("password").value);
     };
-  } else {
-    document.getElementById("logoutBtn").onclick = logout;
-    document.querySelectorAll(".target-pill").forEach(el => {
-      el.onclick = () => setState({ activeTargetId: parseInt(el.dataset.target), lastResult: null, error: null });
-    });
-    const genBtn = document.getElementById("generateBtn");
-    if (genBtn) genBtn.onclick = () => generate(document.getElementById("promptInput").value);
+    return;
   }
+
+  if (state.screen === "transition") {
+    app.innerHTML = renderTransition();
+    document.getElementById("continueBtn").onclick = continueFromTransition;
+    return;
+  }
+
+  if (state.screen === "finished") {
+    app.innerHTML = renderFinished();
+    document.getElementById("logoutBtn2").onclick = logout;
+    return;
+  }
+
+  // playing
+  app.innerHTML = renderPlaying();
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) logoutBtn.onclick = logout;
+
+  const genBtn = document.getElementById("generateBtn");
+  if (genBtn) genBtn.onclick = () => generate(document.getElementById("promptInput").value);
+
+  const promptInput = document.getElementById("promptInput");
+  if (promptInput) {
+    promptInput.oninput = (e) => { state.promptDraft = e.target.value; renderWordCountOnly(); };
+  }
+
+  const nextBtn = document.getElementById("nextBtn");
+  if (nextBtn) nextBtn.onclick = advance;
 }
 
-render();
-if (state.seat_id) loadTargets();
+// Lightweight re-render for just the word counter, so typing doesn't
+// steal focus by re-rendering the whole textarea on every keystroke.
+function renderWordCountOnly() {
+  const target = state.targets[state.currentIndex];
+  if (!target || target.level !== 1) return;
+  const wordCount = state.promptDraft.trim() ? state.promptDraft.trim().split(/\s+/).length : 0;
+  const overWordLimit = wordCount > LEVEL_1_WORD_LIMIT;
+  const el = document.querySelector(".word-count");
+  const btn = document.getElementById("generateBtn");
+  if (el) {
+    el.textContent = `${wordCount} / ${LEVEL_1_WORD_LIMIT} words`;
+    el.className = `word-count ${overWordLimit ? "over" : ""}`;
+  }
+  if (btn) btn.disabled = overWordLimit || state.loading;
+}
+
+// If already logged in (returning session), skip straight to playing.
+if (state.seat_id) {
+  state.screen = "playing";
+  api("/targets").then(targets => { state.targets = targets; render(); }).catch(() => render());
+} else {
+  render();
+}
 </script>
 </body>
 </html>

@@ -37,9 +37,16 @@ def is_emoji_only(prompt: str) -> bool:
     return remainder == ""
 
 
+LEVEL_1_WORD_LIMIT = 12
+
+
 def validate_prompt_for_level(prompt: str, level: int, banned_words_csv: str | None) -> str | None:
     """Returns an error message if the prompt breaks this level's rule, else None."""
-    if level == 2:
+    if level == 1:
+        word_count = len(prompt.strip().split())
+        if word_count > LEVEL_1_WORD_LIMIT:
+            return f"Keep it to {LEVEL_1_WORD_LIMIT} words or fewer for this one -- you used {word_count}."
+    elif level == 2:
         bad_word = contains_banned_word(prompt, banned_words_csv)
         if bad_word:
             return f'That image bans the word "{bad_word}" -- try describing it another way.'

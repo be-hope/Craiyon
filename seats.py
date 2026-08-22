@@ -7,14 +7,30 @@ VALID_ROOMS = {"1", "2", "3"}
 
 USERNAME_RE = re.compile(r"^SEAT(\d{3})_(\d)$")
 
+# Fixed test accounts for development/QA, on top of the real seat pattern.
+# These never expire or depend on the seat range -- handy for testing
+# without printing/remembering a real seat credential.
+TEST_ACCOUNTS = {
+    "DEMO1": {"password": "DEMO123", "seat_id": "DEMO1", "room_id": "1"},
+    "DEMO2": {"password": "DEMO123", "seat_id": "DEMO2", "room_id": "2"},
+    "DEMO3": {"password": "DEMO123", "seat_id": "DEMO3", "room_id": "3"},
+}
+
 
 def validate_login(username: str, password: str):
-    """Returns {"seat_id": ..., "room_id": ...} if valid, else None.
+    """Returns {"seat_id": ..., "room_id": ...} if valid, else None."""
+    clean_user = username.strip().upper()
+    clean_pass = password.strip().upper()
 
-    No database lookup needed -- the credentials are deterministic,
-    so we just check the pattern and range match.
-    """
-    match = USERNAME_RE.match(username.strip().upper())
+    # 1. Check fixed test accounts first
+    if clean_user in TEST_ACCOUNTS:
+        account = TEST_ACCOUNTS[clean_user]
+        if clean_pass == account["password"]:
+            return {"seat_id": account["seat_id"], "room_id": account["room_id"]}
+        return None
+
+    # 2. Fall back to the real seat/room pattern
+    match = USERNAME_RE.match(clean_user)
     if not match:
         return None
 
@@ -26,7 +42,7 @@ def validate_login(username: str, password: str):
         return None
 
     expected_password = f"S{seat_num}_{room}"
-    if password.strip().upper() != expected_password:
+    if clean_pass != expected_password:
         return None
 
     return {"seat_id": f"SEAT{seat_num}", "room_id": room}
