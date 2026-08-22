@@ -1,4 +1,6 @@
+import json
 import os
+import random
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,11 +13,12 @@ from sqlalchemy.orm import Session
 import scoring
 from database import Attempt, RoomSession, TargetImage, get_db, init_db
 from image_gen_client import generate_image
+from level_rules import validate_prompt_for_level
 from seats import validate_login
+from target_pool import TARGET_POOL
 
 app = FastAPI(title="Craiyon Workshop API")
 
-# Allow your frontend (any origin, for simplicity -- tighten later if you want)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -57,6 +60,11 @@ def get_current_session_id(db: Session, room_id: str) -> str:
     return row.session_id
 
 
+def check_admin(secret: str):
+    if secret != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+
+
 # ---------- Routes ----------
 
 @app.get("/health")
@@ -64,13 +72,17 @@ def health():
     return {"status": "ok"}
 
 
-# Serve the frontend at the root URL, static assets under /static
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/")
 def index():
     return FileResponse("static/index.html")
+
+
+@app.get("/admin")
+def admin_page():
+    return FileResponse("static/admin.html")
 
 
 @app.post("/login")
@@ -83,9 +95,20 @@ def login(req: LoginRequest):
 
 @app.get("/targets")
 def list_targets(db: Session = Depends(get_db)):
-    targets = db.query(TargetImage).filter(TargetImage.active == True).all()  # noqa: E712
+    targets = (
+        db.query(TargetImage)
+        .filter(TargetImage.active == True)  # noqa: E712
+        .order_by(TargetImage.id)
+        .all()
+    )
     return [
-        {"id": t.id, "label": t.label, "image_url": t.image_url}
+        {
+            "id": t.id,
+            "label": t.label,
+            "image_url": t.image_url,
+            "level": t.level,
+            "banned_words": t.banned_words,
+        }
         for t in targets
     ]
 
@@ -95,6 +118,12 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db)):
     target = db.query(TargetImage).filter(TargetImage.id == req.target_id).first()
     if target is None:
         raise HTTPException(status_code=404, detail="Unknown target image")
+
+    # Enforce this image's level rule (banned words / emoji-only) BEFORE spending
+    # an attempt or calling the image API -- a rule violation shouldn't cost a try.
+    rule_error = validate_prompt_for_level(req.prompt, target.level, target.banned_words)
+    if rule_error:
+        raise HTTPException(status_code=422, detail=rule_error)
 
     session_id = get_current_session_id(db, req.room_id)
 
@@ -111,16 +140,12 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db)):
     if attempts_used >= MAX_ATTEMPTS_PER_TARGET:
         raise HTTPException(status_code=429, detail="No attempts left for this image")
 
-    # 1. Generate the image via Nebius FLUX schnell
     image_url = generate_image(req.prompt)
 
-    # 2. Score it against the target's precomputed fingerprint
-    import json
     target_fp = scoring.ImageFingerprint.from_dict(json.loads(target.fingerprint))
     generated_fp = scoring.fingerprint_from_url(image_url)
     score = scoring.similarity_score(target_fp, generated_fp)
 
-    # 3. Store the attempt
     attempt = Attempt(
         seat_id=req.seat_id,
         room_id=req.room_id,
@@ -133,6 +158,8 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db)):
     db.add(attempt)
     db.commit()
 
+    # The student still sees their own score immediately -- what's hidden is
+    # the room-wide leaderboard, which now only lives on the admin dashboard.
     return {
         "image_url": image_url,
         "score": score,
@@ -140,11 +167,13 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/leaderboard/{room_id}")
-def leaderboard(room_id: str, db: Session = Depends(get_db)):
+# ---------- Admin ----------
+
+@app.get("/admin/leaderboard/{room_id}")
+def admin_leaderboard(room_id: str, secret: str, db: Session = Depends(get_db)):
+    check_admin(secret)
     session_id = get_current_session_id(db, room_id)
 
-    # Best score per seat, summed across all targets they've attempted
     rows = (
         db.query(Attempt.seat_id, func.max(Attempt.score).label("best_score"))
         .filter(Attempt.room_id == room_id, Attempt.session_id == session_id)
@@ -160,12 +189,9 @@ def leaderboard(room_id: str, db: Session = Depends(get_db)):
     return [{"seat_id": seat, "total_score": round(score, 2)} for seat, score in ranked]
 
 
-# ---------- Admin ----------
-
 @app.post("/admin/new-session/{room_id}")
 def new_session(room_id: str, secret: str, db: Session = Depends(get_db)):
-    if secret != ADMIN_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid admin secret")
+    check_admin(secret)
 
     row = db.query(RoomSession).filter(RoomSession.room_id == room_id).first()
     if row is None:
@@ -177,19 +203,111 @@ def new_session(room_id: str, secret: str, db: Session = Depends(get_db)):
     return {"room_id": room_id, "new_session_id": row.session_id}
 
 
-@app.post("/admin/add-target")
-def add_target(label: str, image_url: str, secret: str, db: Session = Depends(get_db)):
-    if secret != ADMIN_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid admin secret")
+@app.post("/admin/remove-target/{target_id}")
+def remove_target(target_id: int, secret: str, db: Session = Depends(get_db)):
+    check_admin(secret)
 
-    import json
+    target = db.query(TargetImage).filter(TargetImage.id == target_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    target.active = False
+    db.commit()
+    return {"id": target.id, "label": target.label, "active": target.active}
+
+
+@app.post("/admin/randomize-targets")
+def randomize_targets(secret: str, db: Session = Depends(get_db)):
+    """Deactivates the current 6 target images and generates a fresh
+    random set of 6 from the 20-prompt pool -- 2 for each level."""
+    check_admin(secret)
+
+    # Retire whatever's currently active (soft-deactivate, keeps history)
+    current = db.query(TargetImage).filter(TargetImage.active == True).all()  # noqa: E712
+    for t in current:
+        t.active = False
+    db.commit()
+
+    chosen = random.sample(TARGET_POOL, 6)
+    created = []
+
+    for i, item in enumerate(chosen):
+        level = 1 if i < 2 else (2 if i < 4 else 3)
+        banned_words = item["banned_words"] if level == 2 else None
+
+        image_url = generate_image(item["prompt"])
+        target_fp = scoring.fingerprint_from_url(image_url)
+
+        target = TargetImage(
+            label=item["label"],
+            image_url=image_url,
+            fingerprint=json.dumps(target_fp.to_dict()),
+            active=True,
+            level=level,
+            banned_words=banned_words,
+            source_prompt=item["prompt"],
+        )
+        db.add(target)
+        created.append(target)
+
+    db.commit()
+    return [
+        {"id": t.id, "label": t.label, "level": t.level, "banned_words": t.banned_words}
+        for t in created
+    ]
+
+
+@app.post("/admin/add-target")
+def add_target(
+    label: str,
+    image_url: str,
+    secret: str,
+    level: int = 1,
+    banned_words: str = None,
+    db: Session = Depends(get_db),
+):
+    """Add a target image from an external URL."""
+    check_admin(secret)
+
     target_fp = scoring.fingerprint_from_url(image_url)
     target = TargetImage(
         label=label,
         image_url=image_url,
         fingerprint=json.dumps(target_fp.to_dict()),
         active=True,
+        level=level,
+        banned_words=banned_words,
     )
     db.add(target)
     db.commit()
-    return {"id": target.id, "label": target.label}
+    return {"id": target.id, "label": target.label, "level": target.level}
+
+
+@app.post("/admin/generate-target")
+def generate_target(
+    label: str,
+    prompt: str,
+    secret: str,
+    level: int = 1,
+    banned_words: str = None,
+    db: Session = Depends(get_db),
+):
+    """Create a target image by generating it with AI (fal.ai) from a
+    long, precise prompt -- avoids hotlinking/copyright issues entirely,
+    and you keep the exact ground-truth prompt for reference."""
+    check_admin(secret)
+
+    image_url = generate_image(prompt)
+    target_fp = scoring.fingerprint_from_url(image_url)
+    target = TargetImage(
+        label=label,
+        image_url=image_url,
+        fingerprint=json.dumps(target_fp.to_dict()),
+        active=True,
+        level=level,
+        banned_words=banned_words,
+        source_prompt=prompt,
+    )
+    db.add(target)
+    db.commit()
+    return {"id": target.id, "label": target.label, "level": target.level, "image_url": image_url}

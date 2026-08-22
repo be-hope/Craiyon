@@ -53,6 +53,9 @@ class TargetImage(Base):
     image_url = Column(String)      # where the target image is hosted
     fingerprint = Column(String)    # precomputed hash + color histogram, JSON string
     active = Column(Boolean, default=True)
+    level = Column(Integer, default=1)          # 1 = free-form, 2 = banned words, 3 = emoji-only
+    banned_words = Column(String, nullable=True)  # comma-separated, only used for level 2
+    source_prompt = Column(String, nullable=True)  # the prompt used to AI-generate this target (if any)
 
 
 class Attempt(Base):

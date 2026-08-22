@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>craiyon_aura — admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #17181b; --paper: #1f2124; --line: #34373d;
+    --aura-green: #3ecf5e; --coral: #ff6b4a; --gold: #ffc857;
+    --chalk: #f2f0ea; --smoke: #93959e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ink); color: var(--chalk);
+    font-family: 'Work Sans', sans-serif; min-height: 100vh;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 24px 16px 80px; }
+  .wordmark {
+    font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 20px;
+  }
+  .wordmark span { color: var(--aura-green); }
+  .tag { color: var(--smoke); font-size: 13px; margin: 6px 0 20px; }
+  .card {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 16px;
+  }
+  label {
+    display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--smoke); margin-bottom: 6px; font-weight: 600;
+  }
+  input, select {
+    width: 100%; background: var(--ink); border: 1px solid var(--line); border-radius: 9px;
+    padding: 11px 12px; color: var(--chalk); font-size: 15px; margin-bottom: 14px;
+    font-family: 'Space Mono', monospace;
+  }
+  button {
+    background: var(--aura-green); color: #0d1a10; border: none; border-radius: 9px;
+    padding: 12px 18px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%;
+    font-family: 'Work Sans', sans-serif;
+  }
+  button.secondary { background: var(--paper); border: 1px solid var(--line); color: var(--chalk); margin-top: 8px; }
+  .error {
+    background: rgba(255,107,74,0.1); border: 1px solid rgba(255,107,74,0.35);
+    color: var(--coral); font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px;
+  }
+  .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row.first .rank { color: var(--gold); font-weight: 700; }
+  .rank { font-family: 'Space Mono', monospace; color: var(--smoke); width: 30px; display: inline-block; font-size: 13px; }
+  .seat { font-family: 'Space Mono', monospace; }
+  .pts { font-family: 'Space Mono', monospace; font-weight: 700; }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .link-btn { color: var(--aura-green); font-size: 13px; cursor: pointer; font-weight: 600; }
+  .empty { text-align: center; color: var(--smoke); padding: 20px; font-size: 13px; }
+  .status-msg { font-size: 13px; color: var(--aura-green); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+const API_BASE = "";
+let state = {
+  secret: sessionStorage.getItem("admin_secret") || null,
+  room_id: sessionStorage.getItem("admin_room") || "1",
+  leaderboard: [],
+  error: null,
+  statusMsg: null,
+  polling: null,
+};
+
+function setState(patch) {
+  state = { ...state, ...patch };
+  render();
+}
+
+async function fetchLeaderboard() {
+  try {
+    const res = await fetch(`${API_BASE}/admin/leaderboard/${state.room_id}?secret=${encodeURIComponent(state.secret)}`);
+    if (!res.ok) throw new Error((await res.json()).detail || "Failed to load");
+    const data = await res.json();
+    setState({ leaderboard: data, error: null });
+  } catch (e) {
+    setState({ error: e.message });
+  }
+}
+
+function startPolling() {
+  if (state.polling) clearInterval(state.polling);
+  fetchLeaderboard();
+  const interval = setInterval(fetchLeaderboard, 4000);
+  state.polling = interval;
+}
+
+async function newSession() {
+  try {
+    const res = await fetch(`${API_BASE}/admin/new-session/${state.room_id}?secret=${encodeURIComponent(state.secret)}`, { method: "POST" });
+    if (!res.ok) throw new Error((await res.json()).detail || "Failed");
+    setState({ statusMsg: `Session reset for Room ${state.room_id}` });
+    fetchLeaderboard();
+    setTimeout(() => setState({ statusMsg: null }), 3000);
+  } catch (e) {
+    setState({ error: e.message });
+  }
+}
+
+function unlock(secret, room) {
+  sessionStorage.setItem("admin_secret", secret);
+  sessionStorage.setItem("admin_room", room);
+  setState({ secret, room_id: room });
+  startPolling();
+}
+
+function lock() {
+  sessionStorage.clear();
+  if (state.polling) clearInterval(state.polling);
+  state = { secret: null, room_id: "1", leaderboard: [], error: null };
+  render();
+}
+
+function renderLogin() {
+  return `
+    <div class="wordmark">craiyon<span>_aura</span> — admin</div>
+    <div class="tag">Live scores &middot; not visible to participants</div>
+    <div class="card">
+      ${state.error ? `<div class="error">${state.error}</div>` : ""}
+      <label>Admin secret</label>
+      <input id="secretInput" type="password" placeholder="Your ADMIN_SECRET" />
+      <label>Room</label>
+      <select id="roomInput">
+        <option value="1">Room 1</option>
+        <option value="2">Room 2</option>
+        <option value="3">Room 3</option>
+      </select>
+      <button id="unlockBtn">View live scores</button>
+    </div>
+  `;
+}
+
+function renderDashboard() {
+  return `
+    <div class="top-bar">
+      <div class="wordmark">craiyon<span>_aura</span> — admin</div>
+      <span class="link-btn" id="lockBtn">Lock</span>
+    </div>
+    <div class="tag">Room ${state.room_id} &middot; refreshes every few seconds</div>
+
+    <div class="card">
+      <select id="roomSwitch" style="margin-bottom:0;">
+        <option value="1" ${state.room_id === "1" ? "selected" : ""}>Room 1</option>
+        <option value="2" ${state.room_id === "2" ? "selected" : ""}>Room 2</option>
+        <option value="3" ${state.room_id === "3" ? "selected" : ""}>Room 3</option>
+      </select>
+    </div>
+
+    <div class="card">
+      ${state.error ? `<div class="error">${state.error}</div>` : ""}
+      ${state.leaderboard.length ? state.leaderboard.map((row, i) => `
+        <div class="row ${i === 0 ? "first" : ""}">
+          <span><span class="rank">#${i + 1}</span><span class="seat">${row.seat_id}</span></span>
+          <span class="pts">${row.total_score}</span>
+        </div>
+      `).join("") : `<div class="empty">No scores yet for this room/session.</div>`}
+    </div>
+
+    <div class="card">
+      <button id="resetBtn" class="secondary">Start new session (Room ${state.room_id})</button>
+      ${state.statusMsg ? `<div class="status-msg">${state.statusMsg}</div>` : ""}
+    </div>
+  `;
+}
+
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = state.secret ? renderDashboard() : renderLogin();
+
+  if (!state.secret) {
+    document.getElementById("unlockBtn").onclick = () => {
+      const secret = document.getElementById("secretInput").value;
+      const room = document.getElementById("roomInput").value;
+      if (!secret) { setState({ error: "Enter the admin secret" }); return; }
+      unlock(secret, room);
+    };
+  } else {
+    document.getElementById("lockBtn").onclick = lock;
+    document.getElementById("resetBtn").onclick = newSession;
+    document.getElementById("roomSwitch").onchange = (e) => {
+      sessionStorage.setItem("admin_room", e.target.value);
+      setState({ room_id: e.target.value });
+      startPolling();
+    };
+  }
+}
+
+render();
+if (state.secret) startPolling();
+</script>
+</body>
+</html>
