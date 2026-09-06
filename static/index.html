@@ -251,7 +251,7 @@
 <script>
 const API_BASE = "";
 const MAX_ATTEMPTS = 2;
-const LEVEL_1_WORD_LIMIT = 12;
+// word limits now come from each target's own word_limit field (set server-side)
 
 // Placeholder mark -- swap the <svg> below for an <img src="your-aura-logo.jpg">
 // once the real logo file is added to /static.
@@ -322,17 +322,13 @@ async function generate(prompt) {
 
 function advance() {
   const nextIndex = state.currentIndex + 1;
-  const justFinishedLevelBoundary = (state.currentIndex === 1 || state.currentIndex === 3);
 
   if (nextIndex >= state.targets.length) {
     setState({ screen: "finished", lastResult: null, error: null, promptDraft: "" });
     return;
   }
-  if (justFinishedLevelBoundary) {
-    setState({ screen: "transition", currentIndex: nextIndex, lastResult: null, error: null, promptDraft: "" });
-  } else {
-    setState({ currentIndex: nextIndex, lastResult: null, error: null, promptDraft: "" });
-  }
+  // Each image is its own level now, so every completed image gets a transition screen.
+  setState({ screen: "transition", currentIndex: nextIndex, lastResult: null, error: null, promptDraft: "" });
 }
 
 function continueFromTransition() {
@@ -347,9 +343,7 @@ function scoreTier(score) {
 }
 
 function levelOf(index) {
-  if (index < 2) return 1;
-  if (index < 4) return 2;
-  return 3;
+  return index + 1; // each image IS its own level, 1 through 6
 }
 
 // ---------- Screens ----------
@@ -413,15 +407,22 @@ function renderPlaying() {
   const attemptsLeft = state.lastResult ? state.lastResult.attempts_left : MAX_ATTEMPTS;
   const outOfAttempts = attemptsLeft <= 0;
 
+  const wordLimit = target ? target.word_limit : null;
   const wordCount = state.promptDraft.trim() ? state.promptDraft.trim().split(/\s+/).length : 0;
-  const overWordLimit = level === 1 && wordCount > LEVEL_1_WORD_LIMIT;
+  const overWordLimit = (level === 1 || level === 2) && wordLimit && wordCount > wordLimit;
 
   let rulehint = "";
   if (level === 1) {
-    rulehint = `<div class="hint">Max ${LEVEL_1_WORD_LIMIT} words for this one ✏️</div>`;
-  } else if (level === 2 && target.banned_words) {
+    rulehint = `<div class="hint">Max ${wordLimit} words for this one ✏️</div>`;
+  } else if (level === 2) {
+    rulehint = `<div class="hint">Only ${wordLimit} words allowed — make them count! ⚡</div>`;
+  } else if (level === 3 && target.banned_words) {
     rulehint = `<div class="hint">Banned words: ${target.banned_words} 🚫</div>`;
-  } else if (level === 3) {
+  } else if (level === 4 && target.required_words) {
+    rulehint = `<div class="hint">Must include: ${target.required_words} ✅</div>`;
+  } else if (level === 5) {
+    rulehint = `<div class="hint">No color words allowed 🎨🚫</div>`;
+  } else if (level === 6) {
     rulehint = `<div class="hint">Emoji only — no letters allowed 🔡🚫</div>`;
   }
 
@@ -443,6 +444,7 @@ function renderPlaying() {
         <div class="progress-dots">${dots}</div>
         <div class="progress-label">Image ${state.currentIndex + 1} / ${state.targets.length}</div>
       </div>
+      <div class="mega" style="font-size:13px; color: var(--pink); margin-bottom:14px;">LEVEL ${level} OF ${state.targets.length}</div>
 
       <div class="card accent-blue">
         <h2 class="section-title">Recreate this</h2>
@@ -454,8 +456,8 @@ function renderPlaying() {
 
         ${!outOfAttempts ? `
           <label>Your prompt</label>
-          <textarea id="promptInput" placeholder="${level === 3 ? 'Only emoji here...' : 'Describe exactly what you see...'}">${state.promptDraft}</textarea>
-          ${level === 1 ? `<div class="word-count ${overWordLimit ? 'over' : ''}">${wordCount} / ${LEVEL_1_WORD_LIMIT} words</div>` : ""}
+          <textarea id="promptInput" placeholder="${level === 6 ? 'Only emoji here...' : 'Describe exactly what you see...'}">${state.promptDraft}</textarea>
+          ${(level === 1 || level === 2) ? `<div class="word-count ${overWordLimit ? 'over' : ''}">${wordCount} / ${wordLimit} words</div>` : ""}
           <button class="primary" id="generateBtn" ${state.loading || overWordLimit ? "disabled" : ""}>${state.loading ? "Generating..." : "Generate & score"}</button>
         ` : `
           <button class="primary next-btn" id="nextBtn">${state.currentIndex + 1 >= state.targets.length ? "Finish up →" : "Next challenge →"}</button>
@@ -527,13 +529,14 @@ function render() {
 // steal focus by re-rendering the whole textarea on every keystroke.
 function renderWordCountOnly() {
   const target = state.targets[state.currentIndex];
-  if (!target || target.level !== 1) return;
+  if (!target || (target.level !== 1 && target.level !== 2)) return;
+  const wordLimit = target.word_limit;
   const wordCount = state.promptDraft.trim() ? state.promptDraft.trim().split(/\s+/).length : 0;
-  const overWordLimit = wordCount > LEVEL_1_WORD_LIMIT;
+  const overWordLimit = wordLimit && wordCount > wordLimit;
   const el = document.querySelector(".word-count");
   const btn = document.getElementById("generateBtn");
   if (el) {
-    el.textContent = `${wordCount} / ${LEVEL_1_WORD_LIMIT} words`;
+    el.textContent = `${wordCount} / ${wordLimit} words`;
     el.className = `word-count ${overWordLimit ? "over" : ""}`;
   }
   if (btn) btn.disabled = overWordLimit || state.loading;
