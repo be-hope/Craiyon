@@ -18,10 +18,22 @@ GRID = 3  # 3x3 spatial grid for both color and edge-density comparison
 # hash algorithm has blind spots -- combining three signals plus spatial
 # awareness gives real separation between genuine matches and mismatches
 # instead of everything clustering in the 50-60 range.
-STRUCTURE_WEIGHT = 0.40
-COLOR_WEIGHT = 0.35
+#
+# Weighting note: structure (perceptual hash) is the least forgiving signal
+# for this use case -- two independently-generated images of the same
+# concept (e.g. "a blue fox at night") can differ a lot in composition and
+# framing even when the prompt was accurate, so leaning too hard on
+# structure systematically underscores honest matches. Color is the most
+# reliable indicator that the right *content* was described, so it now
+# carries the most weight.
+STRUCTURE_WEIGHT = 0.30
+COLOR_WEIGHT = 0.45
 EDGE_WEIGHT = 0.25
-SCORE_CURVE_EXPONENT = 2.0  # pushes mismatches down harder than it pulls good matches down
+# Curve exponent: still >1 so real mismatches get pushed down, but 2.0 was
+# crushing decent-but-imperfect matches too (a solid 0.78 raw score was
+# landing around 60%). 1.3 keeps meaningful separation for bad matches
+# while no longer punishing good-faith accurate prompts this hard.
+SCORE_CURVE_EXPONENT = 1.3
 
 
 def _load_image(image_bytes: bytes) -> Image.Image:
