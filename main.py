@@ -237,8 +237,12 @@ def randomize_targets(secret: str, db: Session = Depends(get_db)):
     for i, item in enumerate(chosen):
         level = i + 1  # each of the 6 images gets its own level, 1 through 6
 
+        # Only Level 3 needs per-image config (its banned words are specific
+        # to that image). Levels 4 (no colors) and 5 (alliteration) use fixed,
+        # generic rules that apply the same way regardless of which image
+        # landed on that level, so no required_words is needed anymore.
         banned_words = item["banned_words"] if level == 3 else None
-        required_words = item["required_words"] if level == 4 else None
+        required_words = None
         word_limit = DEFAULT_WORD_LIMITS.get(level)  # only set for levels 1 & 2
 
         image_url = generate_image(item["prompt"])

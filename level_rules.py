@@ -15,7 +15,7 @@ _EMOJI_PATTERN = re.compile(
     flags=re.UNICODE,
 )
 
-# Fixed color vocabulary banned on the "no colors" level (Level 5).
+# Fixed color vocabulary banned on the "no colors" level (Level 4).
 # Covers common color names and a few shade/hue modifiers.
 _COLOR_WORDS = [
     "red", "blue", "green", "yellow", "orange", "purple", "pink", "brown",
@@ -49,6 +49,22 @@ def missing_required_words(prompt: str, required_words_csv: str | None) -> list[
     return [w for w in words if w not in prompt_lower]
 
 
+def first_non_alliterative_word(prompt: str) -> str | None:
+    """Checks whether every word in the prompt starts with the same letter.
+
+    Returns the first word that breaks the pattern, or None if the whole
+    prompt is alliterative (fewer than 2 words always counts as clean).
+    """
+    words = re.findall(r"[A-Za-z]+", prompt)
+    if len(words) < 2:
+        return None
+    first_letter = words[0][0].lower()
+    for w in words[1:]:
+        if w[0].lower() != first_letter:
+            return w
+    return None
+
+
 def contains_color_word(prompt: str) -> str | None:
     """Returns the first color word found in the prompt, or None if clean."""
     prompt_lower = prompt.lower()
@@ -79,8 +95,8 @@ def validate_prompt_for_level(
     Level 1 -- free-form, loose word cap (default 20)
     Level 2 -- same idea, strict word cap (default 6)
     Level 3 -- banned words: specific words for this image are off-limits
-    Level 4 -- required words: specific (often unrelated) words MUST appear
-    Level 5 -- no color words allowed at all
+    Level 4 -- no color words allowed at all
+    Level 5 -- alliteration: every word must start with the same letter
     Level 6 -- emoji only, no letters
     """
     if level in (1, 2):
@@ -95,14 +111,14 @@ def validate_prompt_for_level(
             return f'That image bans the word "{bad_word}" -- try describing it another way.'
 
     elif level == 4:
-        missing = missing_required_words(prompt, required_words_csv)
-        if missing:
-            return f'Your prompt must include: {", ".join(missing)}.'
-
-    elif level == 5:
         bad_color = contains_color_word(prompt)
         if bad_color:
             return f'No color words allowed here -- try again without "{bad_color}".'
+
+    elif level == 5:
+        bad_word = first_non_alliterative_word(prompt)
+        if bad_word:
+            return f'Every word must start with the same letter -- "{bad_word}" breaks the pattern.'
 
     elif level == 6:
         if not is_emoji_only(prompt):

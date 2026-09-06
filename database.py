@@ -55,7 +55,7 @@ class TargetImage(Base):
     active = Column(Boolean, default=True)
     level = Column(Integer, default=1)          # 1-6, see level_rules.py for what each means
     banned_words = Column(String, nullable=True)     # comma-separated, used by Level 3
-    required_words = Column(String, nullable=True)   # comma-separated, used by Level 4
+    required_words = Column(String, nullable=True)   # legacy column, unused since Level 4/5 rework
     word_limit = Column(Integer, nullable=True)       # used by Levels 1 & 2 (falls back to a default)
     source_prompt = Column(String, nullable=True)  # the prompt used to AI-generate this target (if any)
 

@@ -418,10 +418,10 @@ function renderPlaying() {
     rulehint = `<div class="hint">Only ${wordLimit} words allowed — make them count! ⚡</div>`;
   } else if (level === 3 && target.banned_words) {
     rulehint = `<div class="hint">Banned words: ${target.banned_words} 🚫</div>`;
-  } else if (level === 4 && target.required_words) {
-    rulehint = `<div class="hint">Must include: ${target.required_words} ✅</div>`;
-  } else if (level === 5) {
+  } else if (level === 4) {
     rulehint = `<div class="hint">No color words allowed 🎨🚫</div>`;
+  } else if (level === 5) {
+    rulehint = `<div class="hint">Every word must start with the same letter 🔤</div>`;
   } else if (level === 6) {
     rulehint = `<div class="hint">Emoji only — no letters allowed 🔡🚫</div>`;
   }
