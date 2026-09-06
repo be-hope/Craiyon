@@ -3,61 +3,99 @@ import io
 import imagehash
 import numpy as np
 import requests
-from PIL import Image
+from PIL import Image, ImageFilter
 
-HASH_SIZE = 16  # bigger = more precise structural comparison, slightly slower
+HASH_SIZE = 16
 MAX_BITS = HASH_SIZE * HASH_SIZE
-COLOR_BINS = 8
+COLOR_BINS = 6
+GRID = 3  # 3x3 spatial grid for both color and edge-density comparison
 
-# Weighting: structure (shapes/composition) vs color match.
-# Pure perceptual hash barely notices color at all (a solid red and solid
-# blue image hash almost identically), so we blend in a color histogram
-# to make sure color differences actually move the score.
-STRUCTURE_WEIGHT = 0.6
-COLOR_WEIGHT = 0.4
+# Three independent signals, each catching something the others miss:
+#  - structure: combined phash+dhash+whash distance (shape/composition)
+#  - color: spatial (per-region) color histogram match
+#  - edge: spatial "how much fine detail is in each region" match
+# A global color histogram alone can't tell WHERE colors sit, and a single
+# hash algorithm has blind spots -- combining three signals plus spatial
+# awareness gives real separation between genuine matches and mismatches
+# instead of everything clustering in the 50-60 range.
+STRUCTURE_WEIGHT = 0.40
+COLOR_WEIGHT = 0.35
+EDGE_WEIGHT = 0.25
+SCORE_CURVE_EXPONENT = 2.0  # pushes mismatches down harder than it pulls good matches down
 
 
 def _load_image(image_bytes: bytes) -> Image.Image:
     return Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
 
-def _phash(img: Image.Image) -> imagehash.ImageHash:
-    return imagehash.phash(img, hash_size=HASH_SIZE)
+def _combined_hash(img: Image.Image) -> dict:
+    return {
+        "phash": imagehash.phash(img, hash_size=HASH_SIZE),
+        "dhash": imagehash.dhash(img, hash_size=HASH_SIZE),
+        "whash": imagehash.whash(img, hash_size=HASH_SIZE),
+    }
 
 
-def _color_histogram(img: Image.Image) -> np.ndarray:
-    arr = np.array(img)
-    hist = []
-    for channel in range(3):  # R, G, B
-        h, _ = np.histogram(arr[:, :, channel], bins=COLOR_BINS, range=(0, 255))
-        hist.extend(h / (h.sum() + 1e-8))
-    return np.array(hist)
+def _spatial_color_histogram(img: Image.Image) -> np.ndarray:
+    arr = np.array(img.resize((GRID * 40, GRID * 40)))
+    h, w, _ = arr.shape
+    cell_h, cell_w = h // GRID, w // GRID
+    out = []
+    for row in range(GRID):
+        for col in range(GRID):
+            cell = arr[row * cell_h:(row + 1) * cell_h, col * cell_w:(col + 1) * cell_w]
+            for channel in range(3):
+                hist, _ = np.histogram(cell[:, :, channel], bins=COLOR_BINS, range=(0, 255))
+                out.extend(hist / (hist.sum() + 1e-8))
+    return np.array(out)
+
+
+def _spatial_edge_density(img: Image.Image) -> np.ndarray:
+    edges = img.convert("L").filter(ImageFilter.FIND_EDGES)
+    arr = np.array(edges.resize((GRID * 40, GRID * 40)))
+    h, w = arr.shape
+    cell_h, cell_w = h // GRID, w // GRID
+    out = []
+    for row in range(GRID):
+        for col in range(GRID):
+            cell = arr[row * cell_h:(row + 1) * cell_h, col * cell_w:(col + 1) * cell_w]
+            out.append(cell.mean() / 255.0)
+    return np.array(out)
 
 
 class ImageFingerprint:
-    """Bundles the structural hash + color histogram for one image."""
+    """Bundles all three signals for one image."""
 
-    def __init__(self, phash: imagehash.ImageHash, color_hist: np.ndarray):
-        self.phash = phash
+    def __init__(self, hashes: dict, color_hist: np.ndarray, edge_density: np.ndarray):
+        self.hashes = hashes
         self.color_hist = color_hist
+        self.edge_density = edge_density
 
     def to_dict(self) -> dict:
         return {
-            "phash": str(self.phash),
+            "phash": str(self.hashes["phash"]),
+            "dhash": str(self.hashes["dhash"]),
+            "whash": str(self.hashes["whash"]),
             "color_hist": self.color_hist.tolist(),
+            "edge_density": self.edge_density.tolist(),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "ImageFingerprint":
         return cls(
-            phash=imagehash.hex_to_hash(d["phash"]),
+            hashes={
+                "phash": imagehash.hex_to_hash(d["phash"]),
+                "dhash": imagehash.hex_to_hash(d["dhash"]),
+                "whash": imagehash.hex_to_hash(d["whash"]),
+            },
             color_hist=np.array(d["color_hist"]),
+            edge_density=np.array(d["edge_density"]),
         )
 
 
 def fingerprint_from_bytes(image_bytes: bytes) -> ImageFingerprint:
     img = _load_image(image_bytes)
-    return ImageFingerprint(_phash(img), _color_histogram(img))
+    return ImageFingerprint(_combined_hash(img), _spatial_color_histogram(img), _spatial_edge_density(img))
 
 
 def fingerprint_from_url(url: str) -> ImageFingerprint:
@@ -66,13 +104,30 @@ def fingerprint_from_url(url: str) -> ImageFingerprint:
     return fingerprint_from_bytes(resp.content)
 
 
+def _cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
+    denom = (np.linalg.norm(a) * np.linalg.norm(b)) + 1e-8
+    return max(0.0, float(np.dot(a, b)) / denom)
+
+
 def similarity_score(target: ImageFingerprint, generated: ImageFingerprint) -> float:
     """0-100 score. 100 = identical, 0 = maximally different."""
-    hash_distance = target.phash - generated.phash
+    hash_distance = (
+        (target.hashes["phash"] - generated.hashes["phash"])
+        + (target.hashes["dhash"] - generated.hashes["dhash"])
+        + (target.hashes["whash"] - generated.hashes["whash"])
+    ) / 3.0
     structure_score = max(0.0, 1 - hash_distance / MAX_BITS)
 
-    denom = (np.linalg.norm(target.color_hist) * np.linalg.norm(generated.color_hist)) + 1e-8
-    color_score = max(0.0, float(np.dot(target.color_hist, generated.color_hist)) / denom)
+    color_score = _cosine_sim(target.color_hist, generated.color_hist)
 
-    combined = STRUCTURE_WEIGHT * structure_score + COLOR_WEIGHT * color_score
+    edge_diff = np.abs(target.edge_density - generated.edge_density).mean()
+    edge_score = max(0.0, 1 - edge_diff)
+
+    combined = (
+        STRUCTURE_WEIGHT * structure_score
+        + COLOR_WEIGHT * color_score
+        + EDGE_WEIGHT * edge_score
+    )
+    combined = combined ** SCORE_CURVE_EXPONENT
+
     return round(combined * 100, 2)

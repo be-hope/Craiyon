@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 import scoring
 from database import Attempt, RoomSession, TargetImage, get_db, init_db
 from image_gen_client import generate_image
-from level_rules import validate_prompt_for_level
+from level_rules import DEFAULT_WORD_LIMITS, validate_prompt_for_level
 from seats import validate_login
 from target_pool import TARGET_POOL
 
@@ -108,6 +108,8 @@ def list_targets(db: Session = Depends(get_db)):
             "image_url": t.image_url,
             "level": t.level,
             "banned_words": t.banned_words,
+            "required_words": t.required_words,
+            "word_limit": t.word_limit,
         }
         for t in targets
     ]
@@ -119,9 +121,11 @@ def generate(req: GenerateRequest, db: Session = Depends(get_db)):
     if target is None:
         raise HTTPException(status_code=404, detail="Unknown target image")
 
-    # Enforce this image's level rule (banned words / emoji-only) BEFORE spending
-    # an attempt or calling the image API -- a rule violation shouldn't cost a try.
-    rule_error = validate_prompt_for_level(req.prompt, target.level, target.banned_words)
+    # Enforce this image's level rule BEFORE spending an attempt or calling
+    # the image API -- a rule violation shouldn't cost a try.
+    rule_error = validate_prompt_for_level(
+        req.prompt, target.level, target.banned_words, target.required_words, target.word_limit
+    )
     if rule_error:
         raise HTTPException(status_code=422, detail=rule_error)
 
@@ -219,10 +223,9 @@ def remove_target(target_id: int, secret: str, db: Session = Depends(get_db)):
 @app.post("/admin/randomize-targets")
 def randomize_targets(secret: str, db: Session = Depends(get_db)):
     """Deactivates the current 6 target images and generates a fresh
-    random set of 6 from the 20-prompt pool -- 2 for each level."""
+    random set of 6 from the 20-prompt pool -- one image per level (1-6)."""
     check_admin(secret)
 
-    # Retire whatever's currently active (soft-deactivate, keeps history)
     current = db.query(TargetImage).filter(TargetImage.active == True).all()  # noqa: E712
     for t in current:
         t.active = False
@@ -232,8 +235,11 @@ def randomize_targets(secret: str, db: Session = Depends(get_db)):
     created = []
 
     for i, item in enumerate(chosen):
-        level = 1 if i < 2 else (2 if i < 4 else 3)
-        banned_words = item["banned_words"] if level == 2 else None
+        level = i + 1  # each of the 6 images gets its own level, 1 through 6
+
+        banned_words = item["banned_words"] if level == 3 else None
+        required_words = item["required_words"] if level == 4 else None
+        word_limit = DEFAULT_WORD_LIMITS.get(level)  # only set for levels 1 & 2
 
         image_url = generate_image(item["prompt"])
         target_fp = scoring.fingerprint_from_url(image_url)
@@ -245,6 +251,8 @@ def randomize_targets(secret: str, db: Session = Depends(get_db)):
             active=True,
             level=level,
             banned_words=banned_words,
+            required_words=required_words,
+            word_limit=word_limit,
             source_prompt=item["prompt"],
         )
         db.add(target)
@@ -252,7 +260,11 @@ def randomize_targets(secret: str, db: Session = Depends(get_db)):
 
     db.commit()
     return [
-        {"id": t.id, "label": t.label, "level": t.level, "banned_words": t.banned_words}
+        {
+            "id": t.id, "label": t.label, "level": t.level,
+            "banned_words": t.banned_words, "required_words": t.required_words,
+            "word_limit": t.word_limit,
+        }
         for t in created
     ]
 
@@ -264,6 +276,8 @@ def add_target(
     secret: str,
     level: int = 1,
     banned_words: str = None,
+    required_words: str = None,
+    word_limit: int = None,
     db: Session = Depends(get_db),
 ):
     """Add a target image from an external URL."""
@@ -277,6 +291,8 @@ def add_target(
         active=True,
         level=level,
         banned_words=banned_words,
+        required_words=required_words,
+        word_limit=word_limit,
     )
     db.add(target)
     db.commit()
@@ -290,6 +306,8 @@ def generate_target(
     secret: str,
     level: int = 1,
     banned_words: str = None,
+    required_words: str = None,
+    word_limit: int = None,
     db: Session = Depends(get_db),
 ):
     """Create a target image by generating it with AI (fal.ai) from a
@@ -306,6 +324,8 @@ def generate_target(
         active=True,
         level=level,
         banned_words=banned_words,
+        required_words=required_words,
+        word_limit=word_limit,
         source_prompt=prompt,
     )
     db.add(target)
