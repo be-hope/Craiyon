@@ -409,21 +409,21 @@ function renderPlaying() {
 
   const wordLimit = target ? target.word_limit : null;
   const wordCount = state.promptDraft.trim() ? state.promptDraft.trim().split(/\s+/).length : 0;
-  const overWordLimit = (level === 1 || level === 2) && wordLimit && wordCount > wordLimit;
+  const overWordLimit = (level === 2 || level === 3) && wordLimit && wordCount > wordLimit;
 
   let rulehint = "";
   if (level === 1) {
-    rulehint = `<div class="hint">Max ${wordLimit} words for this one ✏️</div>`;
+    rulehint = `<div class="hint">No constraints — write whatever you want ✍️</div>`;
   } else if (level === 2) {
+    rulehint = `<div class="hint">Max ${wordLimit} words for this one ✏️</div>`;
+  } else if (level === 3) {
     rulehint = `<div class="hint">Only ${wordLimit} words allowed — make them count! ⚡</div>`;
-  } else if (level === 3 && target.banned_words) {
+  } else if (level === 4 && target.banned_words) {
     rulehint = `<div class="hint">Banned words: ${target.banned_words} 🚫</div>`;
-  } else if (level === 4) {
-    rulehint = `<div class="hint">No color words allowed 🎨🚫</div>`;
   } else if (level === 5) {
-    rulehint = `<div class="hint">Every word must start with the same letter 🔤</div>`;
+    rulehint = `<div class="hint">No color words allowed 🎨🚫</div>`;
   } else if (level === 6) {
-    rulehint = `<div class="hint">Emoji only — no letters allowed 🔡🚫</div>`;
+    rulehint = `<div class="hint">Every word must start with the same letter 🔤</div>`;
   }
 
   const dots = state.targets.map((_, i) => {
@@ -456,8 +456,8 @@ function renderPlaying() {
 
         ${!outOfAttempts ? `
           <label>Your prompt</label>
-          <textarea id="promptInput" placeholder="${level === 6 ? 'Only emoji here...' : 'Describe exactly what you see...'}">${state.promptDraft}</textarea>
-          ${(level === 1 || level === 2) ? `<div class="word-count ${overWordLimit ? 'over' : ''}">${wordCount} / ${wordLimit} words</div>` : ""}
+          <textarea id="promptInput" placeholder="Describe exactly what you see...">${state.promptDraft}</textarea>
+          ${(level === 2 || level === 3) ? `<div class="word-count ${overWordLimit ? 'over' : ''}">${wordCount} / ${wordLimit} words</div>` : ""}
           <button class="primary" id="generateBtn" ${state.loading || overWordLimit ? "disabled" : ""}>${state.loading ? "Generating..." : "Generate & score"}</button>
         ` : `
           <button class="primary next-btn" id="nextBtn">${state.currentIndex + 1 >= state.targets.length ? "Finish up →" : "Next challenge →"}</button>
@@ -529,7 +529,7 @@ function render() {
 // steal focus by re-rendering the whole textarea on every keystroke.
 function renderWordCountOnly() {
   const target = state.targets[state.currentIndex];
-  if (!target || (target.level !== 1 && target.level !== 2)) return;
+  if (!target || (target.level !== 2 && target.level !== 3)) return;
   const wordLimit = target.word_limit;
   const wordCount = state.promptDraft.trim() ? state.promptDraft.trim().split(/\s+/).length : 0;
   const overWordLimit = wordLimit && wordCount > wordLimit;
