@@ -31,9 +31,10 @@ COLOR_WEIGHT = 0.45
 EDGE_WEIGHT = 0.25
 # Curve exponent: still >1 so real mismatches get pushed down, but 2.0 was
 # crushing decent-but-imperfect matches too (a solid 0.78 raw score was
-# landing around 60%). 1.3 keeps meaningful separation for bad matches
-# while no longer punishing good-faith accurate prompts this hard.
-SCORE_CURVE_EXPONENT = 1.3
+# landing around 60%). 1.15 keeps meaningful separation for bad matches
+# while giving good-faith attempts a bit more breathing room (slightly
+# more lenient across the board per user request).
+SCORE_CURVE_EXPONENT = 1.15
 
 
 def _load_image(image_bytes: bytes) -> Image.Image:
